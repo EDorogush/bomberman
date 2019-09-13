@@ -42,6 +42,7 @@ public class YourSolver implements Solver<Board> {
   private static final String LEFT_MOVE = Direction.LEFT.toString();
   private static final String RIGHT_MOVE = Direction.RIGHT.toString();
   private static final String STAY = Direction.STOP.toString();
+  private static final String BOMB = Direction.ACT.toString();
 
   private static final String FIRST_BOMB_THEN_UP_MOVE =
       Direction.ACT.toString() + "," + Direction.UP.toString();
@@ -62,6 +63,9 @@ public class YourSolver implements Solver<Board> {
       Direction.RIGHT.toString() + "," + Direction.ACT.toString();
   private static Action lastAction = Action.RIGHT;
 
+  private final int startOffset = 2;
+  private final int finishOffset = 4;
+
   private static final int COUNT_BLOCK = 4;
   private Dice dice;
   private Board board;
@@ -78,7 +82,7 @@ public class YourSolver implements Solver<Board> {
     //  Elements.DESTROYED_WALL,
   };
   private final Elements[] targets = {
-    Elements.OTHER_BOMBERMAN, Elements.DESTROYABLE_WALL, Elements.MEAT_CHOPPER
+    Elements.OTHER_BOMBERMAN, Elements.MEAT_CHOPPER
   };
 
   public YourSolver(Dice dice) {
@@ -99,17 +103,16 @@ public class YourSolver implements Solver<Board> {
     boolean status = checkTarget(location);
     switch (lastAction) {
       case UP:
-        return goUP(location, status);
+        return goUP(location, status, 4);
       case DOWN:
-        return goDown(location, status);
+        return goDown(location, status, 4);
       case LEFT:
-        return goLeft(location, status);
+        return goLeft(location, status, 4);
       case RIGHT:
-        return goRight(location, status);
+        return goRight(location, status, 4);
       default:
+        return Direction.ACT.toString();
     }
-
-    return STAY;
 
     //
   }
@@ -126,13 +129,17 @@ public class YourSolver implements Solver<Board> {
         new Board());
   }
 
-  private String goRight(Point location, boolean status) {
+  private String goRight(Point location, boolean status, int count) {
     // go right
+    if (count == 0) {
+      return BOMB;
+    }
     boolean safe = true;
     final String result;
-    if (board.isAt(location.getX() + 1, location.getY(), walls)) {
+    if (board.isAt(location.getX() + 1, location.getY(), walls) || isDeadEndRight(location)) {
       safe = false;
     } else {
+      // safe = checkFreeEscapeRight(location);
       for (int i = 1; i < COUNT_BLOCK; i++) {
         if (board.isAt(location.getX() + i, location.getY(), danger)) {
           safe = false;
@@ -145,17 +152,21 @@ public class YourSolver implements Solver<Board> {
       result = status ? FIRST_BOMB_THEN_RIGHT_MOVE : RIGHT_MOVE;
     } else {
 
-      result = goDown(location, status);
+      result = goDown(location, status, count - 1);
     }
     return result;
   }
 
-  private String goLeft(Point location, boolean status) {
+  private String goLeft(Point location, boolean status, int count) {
+    if (count == 0) {
+      return BOMB;
+    }
     boolean safe = true;
     final String result;
-    if (board.isAt(location.getX() - 1, location.getY(), walls)) {
+    if (board.isAt(location.getX() - 1, location.getY(), walls) || isDeadEndLeft(location)) {
       safe = false;
     } else {
+      // safe = checkFreeEscapeLeft(location);
       for (int i = 1; i < COUNT_BLOCK; i++) {
         if (board.isAt(location.getX() - i, location.getY(), danger)) {
           safe = false;
@@ -168,18 +179,22 @@ public class YourSolver implements Solver<Board> {
       lastAction = Action.LEFT;
       result = status ? FIRST_BOMB_THEN_LEFT_MOVE : LEFT_MOVE;
     } else {
-      result = goUP(location, status);
+      result = goUP(location, status, count - 1);
     }
     return result;
   }
 
-  private String goUP(Point location, boolean status) {
+  private String goUP(Point location, boolean status, int count) {
+    if (count == 0) {
+      return BOMB;
+    }
     boolean safe = true;
     final String result;
     // go up
-    if (board.isAt(location.getX(), location.getY() + 1, walls)) {
+    if (board.isAt(location.getX(), location.getY() + 1, walls) || isDeadEndUp(location)) {
       safe = false;
     } else {
+      // safe = checkFreeEscapeUP(location);
       for (int i = 1; i < COUNT_BLOCK; i++) {
         if (board.isAt(location.getX(), location.getY() + i, danger)) {
           safe = false;
@@ -192,17 +207,22 @@ public class YourSolver implements Solver<Board> {
       lastAction = Action.UP;
       result = status ? FIRST_BOMB_THEN_UP_MOVE : UP_MOVE;
     } else {
-      result = goRight(location, status);
+
+      result = goRight(location, status, count - 1);
     }
     return result;
   }
 
-  private String goDown(Point location, boolean status) {
+  private String goDown(Point location, boolean status, int count) {
+    if (count == 0) {
+      return BOMB;
+    }
     boolean safe = true;
     final String result;
-    if (board.isAt(location.getX(), location.getY() - 1, walls)) {
+    if (board.isAt(location.getX(), location.getY() - 1, walls) || isDeadEndDown(location)) {
       safe = false;
     } else {
+      // safe = checkFreeEscapeDown(location);
       for (int i = 1; i < COUNT_BLOCK; i++) {
         if (board.isAt(location.getX(), location.getY() - i, danger)) {
           safe = false;
@@ -215,15 +235,16 @@ public class YourSolver implements Solver<Board> {
       result = status ? FIRST_BOMB_THEN_DOWN_MOVE : DOWN_MOVE;
 
     } else {
-      result = goLeft(location, status);
+      result = goLeft(location, status, count - 1);
     }
     return result;
   }
 
   private boolean checkTarget(Point location) {
+    int radius = 4;
 
-    for (int i = location.getX() - 4; i < location.getX() + 4; i++) {
-      for (int j = location.getY() - 4; j < location.getY() + 4; j++) {
+    for (int i = location.getX() - radius; i < location.getX() + radius; i++) {
+      for (int j = location.getY() - radius; j < location.getY() + radius; j++) {
         if (board.isAt(i, j, targets)) {
           return true;
         }
@@ -243,4 +264,70 @@ public class YourSolver implements Solver<Board> {
         && board.isAt(
             location.getX(), location.getY() + 1, Elements.WALL, Elements.DESTROYABLE_WALL);
   }
+
+  private boolean checkFreeEscapeRight(Point location) {
+    for (int offset = startOffset; offset < finishOffset; offset++) {
+      if (!board.isAt(location.getX() + offset, location.getY() - 1, walls)
+          || !board.isAt(location.getX() + offset, location.getY() + 1, walls)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean checkFreeEscapeLeft(Point location) {
+    for (int offset = startOffset; offset < finishOffset; offset++) {
+      if (!board.isAt(location.getX() - offset, location.getY() - 1, walls)
+          || !board.isAt(location.getX() - offset, location.getY() + 1, walls)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean checkFreeEscapeUP(Point location) {
+    for (int offset = startOffset; offset < finishOffset; offset++) {
+      if (!board.isAt(location.getX() - 1, location.getY() + offset, walls)
+          || !board.isAt(location.getX() + 1, location.getY() + offset, walls)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean checkFreeEscapeDown(Point location) {
+    for (int offset = startOffset; offset < finishOffset; offset++) {
+      if (!board.isAt(location.getX() - 1, location.getY() - offset, walls)
+          || !board.isAt(location.getX() + 1, location.getY() - offset, walls)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean isDeadEndRight(Point location) {
+    return (board.isAt(location.getX() + 2, location.getY(), walls)
+        && board.isAt(location.getX() + 1, location.getY() - 1, walls)
+        && board.isAt(location.getX() + 1, location.getY() + 1, walls));
+  }
+
+  private boolean isDeadEndLeft(Point location) {
+    return (board.isAt(location.getX() - 2, location.getY(), walls)
+        && board.isAt(location.getX() - 1, location.getY() - 1, walls)
+        && board.isAt(location.getX() - 1, location.getY() + 1, walls));
+  }
+
+  private boolean isDeadEndDown(Point location) {
+    return (board.isAt(location.getX(), location.getY() - 2, walls)
+        && board.isAt(location.getX() - 1, location.getY() - 1, walls)
+        && board.isAt(location.getX() + 1, location.getY() - 1, walls));
+  }
+
+  private boolean isDeadEndUp(Point location) {
+    return (board.isAt(location.getX(), location.getY() + 2, walls)
+        && board.isAt(location.getX() - 1, location.getY() + 1, walls)
+        && board.isAt(location.getX() + 1, location.getY() + 1, walls));
+  }
+  //
+
 }
