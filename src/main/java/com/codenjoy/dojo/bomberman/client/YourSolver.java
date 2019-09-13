@@ -32,6 +32,7 @@ import com.codenjoy.dojo.services.RandomDice;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import javax.xml.crypto.dsig.spec.XPathFilterParameterSpec;
 import sun.jvm.hotspot.debugger.posix.elf.ELFException;
 
 /** User: Elena Dorogush */
@@ -61,6 +62,7 @@ public class YourSolver implements Solver<Board> {
       Direction.RIGHT.toString() + "," + Direction.ACT.toString();
   private Action lastAction = Action.RIGHT;
 
+  private static final int COUNT_BLOCK = 4;
   private Dice dice;
   private Board board;
   private final Elements[] danger = {
@@ -71,8 +73,12 @@ public class YourSolver implements Solver<Board> {
     Elements.BOMB_TIMER_4,
     Elements.BOMB_TIMER_5,
   };
-  private final Elements[] walls = {Elements.WALL, Elements.DESTROYABLE_WALL, Elements.OTHER_BOMBERMAN
+  private final Elements[] walls = {
+    Elements.WALL, Elements.DESTROYABLE_WALL, Elements.OTHER_BOMBERMAN
     //  Elements.DESTROYED_WALL,
+  };
+  private final Elements[] targets = {
+    Elements.OTHER_BOMBERMAN, Elements.DESTROYABLE_WALL, Elements.MEAT_CHOPPER
   };
 
   public YourSolver(Dice dice) {
@@ -84,15 +90,16 @@ public class YourSolver implements Solver<Board> {
     this.board = board;
     if (board.isMyBombermanDead()) return "";
     Point location = board.getBomberman();
+    boolean status = checkTarget(location);
     switch (lastAction) {
       case UP:
-        return goUP(location);
+        return goUP(location, status);
       case DOWN:
-        return goDown(location);
+        return goDown(location, status);
       case LEFT:
-        return goLeft(location);
+        return goLeft(location, status);
       case RIGHT:
-        return goRight(location);
+        return goRight(location, status);
       default:
     }
 
@@ -104,20 +111,23 @@ public class YourSolver implements Solver<Board> {
   public static void main(String[] args) {
     WebSocketRunner.runClient(
         // paste here board page url from browser after registration
-        "http://codenjoy.com/codenjoy-contest/board/player/7liq7vxb4uns919pb9wp?code=6617171509894462948",
-        // "http://codenjoy.com:80/codenjoy-contest/board/player/3edq63tw0bq4w4iem7nb?code=1234567890123456789",
+
+        "http://10.6.219.126:80/codenjoy-contest/board/player/jle2fqe5bv9vn7dtfpwb?code=2902638375343900005",
+        // elena personal
+        // "http://codenjoy.com/codenjoy-contest/board/player/7liq7vxb4uns919pb9wp?code=6617171509894462948",
+
         new YourSolver(new RandomDice()),
         new Board());
   }
 
-  private String goRight(Point location) {
+  private String goRight(Point location, boolean status) {
     // go right
     boolean safe = true;
     final String result;
     if (board.isAt(location.getX() + 1, location.getY(), walls)) {
       safe = false;
     } else {
-      for (int i = 1; i < 8; i++) {
+      for (int i = 1; i < COUNT_BLOCK; i++) {
         if (board.isAt(location.getX() + i, location.getY(), danger)) {
           safe = false;
           break;
@@ -126,21 +136,21 @@ public class YourSolver implements Solver<Board> {
     }
     if (safe) {
       lastAction = Action.RIGHT;
-      result = FIRST_BOMB_THEN_RIGHT_MOVE;
+      result = status ? FIRST_BOMB_THEN_RIGHT_MOVE : RIGHT_MOVE;
     } else {
 
-      result = goDown(location);
+      result = goDown(location, status);
     }
     return result;
   }
 
-  private String goLeft(Point location) {
+  private String goLeft(Point location, boolean status) {
     boolean safe = true;
     final String result;
     if (board.isAt(location.getX() - 1, location.getY(), walls)) {
       safe = false;
     } else {
-      for (int i = 1; i < 8; i++) {
+      for (int i = 1; i < COUNT_BLOCK; i++) {
         if (board.isAt(location.getX() - i, location.getY(), danger)) {
           safe = false;
           break;
@@ -150,21 +160,21 @@ public class YourSolver implements Solver<Board> {
 
     if (safe) {
       lastAction = Action.LEFT;
-      result = FIRST_BOMB_THEN_LEFT_MOVE;
+      result = status ? FIRST_BOMB_THEN_LEFT_MOVE : LEFT_MOVE;
     } else {
-      result = goUP(location);
+      result = goUP(location, status);
     }
     return result;
   }
 
-  private String goUP(Point location) {
+  private String goUP(Point location, boolean status) {
     boolean safe = true;
     final String result;
     // go up
     if (board.isAt(location.getX(), location.getY() + 1, walls)) {
       safe = false;
     } else {
-      for (int i = 1; i < 8; i++) {
+      for (int i = 1; i < COUNT_BLOCK; i++) {
         if (board.isAt(location.getX(), location.getY() + i, danger)) {
           safe = false;
           break;
@@ -174,20 +184,20 @@ public class YourSolver implements Solver<Board> {
 
     if (safe) {
       lastAction = Action.UP;
-      result = FIRST_BOMB_THEN_UP_MOVE;
+      result = status ? FIRST_BOMB_THEN_UP_MOVE : UP_MOVE;
     } else {
-      result = goRight(location);
+      result = goRight(location, status);
     }
     return result;
   }
 
-  private String goDown(Point location) {
+  private String goDown(Point location, boolean status) {
     boolean safe = true;
     final String result;
     if (board.isAt(location.getX(), location.getY() - 1, walls)) {
       safe = false;
     } else {
-      for (int i = 1; i < 8; i++) {
+      for (int i = 1; i < COUNT_BLOCK; i++) {
         if (board.isAt(location.getX(), location.getY() - i, danger)) {
           safe = false;
           break;
@@ -196,11 +206,24 @@ public class YourSolver implements Solver<Board> {
     }
     if (safe) {
       lastAction = Action.DOWN;
-      result = FIRST_BOMB_THEN_DOWN_MOVE;
+      result = status ? FIRST_BOMB_THEN_DOWN_MOVE : DOWN_MOVE;
 
     } else {
-      result = goLeft(location);
+      result = goLeft(location, status);
     }
     return result;
+  }
+
+  private boolean checkTarget(Point location) {
+
+    for (int i = location.getX() - 4; i < location.getX() + 4; i++) {
+      for (int j = location.getY() - 4; j < location.getY() + 4; j++) {
+        if (board.isAt(i, j, targets)) {
+          return true;
+        }
+      }
+      //
+    }
+    return false;
   }
 }
