@@ -60,7 +60,7 @@ public class YourSolver implements Solver<Board> {
       Direction.LEFT.toString() + "," + Direction.ACT.toString();
   private static final String FIRST_RIGHT_MOVE_THEN_BOMB =
       Direction.RIGHT.toString() + "," + Direction.ACT.toString();
-  private Action lastAction = Action.RIGHT;
+  private static Action lastAction = Action.RIGHT;
 
   private static final int COUNT_BLOCK = 4;
   private Dice dice;
@@ -88,8 +88,14 @@ public class YourSolver implements Solver<Board> {
   @Override
   public String get(Board board) {
     this.board = board;
-    if (board.isMyBombermanDead()) return "";
+    //    if (board.isMyBombermanDead()){
+    //      lastAction = Action.RIGHT;
+    //      return FIRST_BOMB_THEN_RIGHT_MOVE;
+    //    }
     Point location = board.getBomberman();
+    if (checkTrap(location)) {
+      return Direction.ACT.toString();
+    }
     boolean status = checkTarget(location);
     switch (lastAction) {
       case UP:
@@ -225,5 +231,16 @@ public class YourSolver implements Solver<Board> {
       //
     }
     return false;
+  }
+
+  private boolean checkTrap(Point location) {
+    return board.isAt(
+            location.getX() - 1, location.getY(), Elements.WALL, Elements.DESTROYABLE_WALL)
+        && board.isAt(
+            location.getX() + 1, location.getY(), Elements.WALL, Elements.DESTROYABLE_WALL)
+        && board.isAt(
+            location.getX(), location.getY() - 1, Elements.WALL, Elements.DESTROYABLE_WALL)
+        && board.isAt(
+            location.getX(), location.getY() + 1, Elements.WALL, Elements.DESTROYABLE_WALL);
   }
 }
